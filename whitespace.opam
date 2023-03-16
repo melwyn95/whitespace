@@ -1,0 +1,15 @@
+opam-version: "2.0"
+name: "project"
+version: "0.1"
+synopsis: "Interpreter for the Whitespace esolang"
+description: """
+A parser & Interpreter for Whitespace esolang
+"""
+maintainer: "Melwyn Saldanha <melwyn95@gmail.com>"
+authors: "Melwyn Saldanha <melwyn95@gmail.com>"
+license: "MIT"
+homepage: ""
+bug-reports: ""
+dev-repo: ""
+depends: [ "ocaml" "dune" ]
+build: ["dune" "build" "-p" name "-j" jobs]
