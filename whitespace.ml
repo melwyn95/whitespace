@@ -209,8 +209,32 @@ module Parser = struct
 
 end
 
-let hello_world = "   \t  \t   \n\t\n     \t\t  \t \t\n\t\n  \t\n     \t\t \t\t  \n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t\t\t\n\t\n     \t \t\t  \n\t\n     \t     \n\t\n     \t\t\t \t\t\t\n\t\n     \t\t \t\t\t\t\n\t\n     \t\t\t  \t \n\t\n     \t\t \t\t  \n\t\n     \t\t  \t  \n\t\n     \t    \t\n\t\n     \t    \t\n\t\n  \n\n\n"
+module Interpreter = struct
+
+  let stack = Stack.create ()
+
+  let heap = Hashtbl.create 512
+
+  let rec eval : Whitespace.t -> unit =
+    fun instructions ->
+      let open Whitespace in
+      match instructions with
+      | FlowControl EndProg :: _ -> ()
+      | IO OutputChar :: instructions ->
+        let top = Stack.pop stack in
+        let ch = Char.unsafe_chr top in
+        let () = Printf.printf "%c" ch in
+        eval instructions
+      | StackManipulaton Push n :: instructions ->
+        let () = Stack.push n stack in
+        eval instructions
+      | _ -> failwith "EvalError: [eval] Not implemented"
+
+end
+
+let hello_world = "   \t  \t   \n\t\n     \t\t  \t \t\n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t\t\t\n\t\n     \t \t\t  \n\t\n     \t     \n\t\n     \t\t\t \t\t\t\n\t\n     \t\t \t\t\t\t\n\t\n     \t\t\t  \t \n\t\n     \t\t \t\t  \n\t\n     \t\t  \t  \n\t\n     \t    \t\n\t\n     \t    \t\n\t\n  \n\n\n"
 
 let ws = hello_world
   |> Lexer.tokenize
   |> Parser.parse
+  |> Interpreter.eval

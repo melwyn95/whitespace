@@ -8,6 +8,7 @@ A WIP whitespace interpreter in OCaml
 - [ ] Use dune
 - [ ] Write proper readme
 - [ ] Use ocamlformat
+- [ ] Get rid of imperative `Stack` & `Hashtbl`
 
 
 ## Links
