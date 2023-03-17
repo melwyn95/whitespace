@@ -1,5 +1,11 @@
+# Whitespace
+
+A WIP whitespace interpreter in OCaml
+
+
 ## TODO(s)
 
+- [ ] Use dune
 - [ ] Write proper readme
 - [ ] Use ocamlformat
 

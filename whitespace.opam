@@ -11,5 +11,5 @@ license: "MIT"
 homepage: ""
 bug-reports: ""
 dev-repo: ""
-depends: [ "ocaml" "dune" ]
+depends: [ "ocaml" "dune" "ocaml-lsp-server" "utop" ]
 build: ["dune" "build" "-p" name "-j" jobs]
