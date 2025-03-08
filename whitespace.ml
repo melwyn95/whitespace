@@ -184,7 +184,6 @@ module Parser = struct
         | Tab :: tokens   -> Retrive, tokens
         | _ -> failwith "ParseError: [parse_heap_access] Invalid case"
 
-
   and parse : Lexer.tokens -> Whitespace.t =
     fun tokens ->
       let open Lexer in
@@ -328,8 +327,17 @@ module Interpreter = struct
 end
 
 let hello_world = "   \t  \t   \n\t\n     \t\t  \t \t\n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t\t\t\n\t\n     \t \t\t  \n\t\n     \t     \n\t\n     \t\t\t \t\t\t\n\t\n     \t\t \t\t\t\t\n\t\n     \t\t\t  \t \n\t\n     \t\t \t\t  \n\t\n     \t\t  \t  \n\t\n     \t    \t\n\t\n     \t    \t\n\t\n     \t \t \n\t\n  \n\n\n"
-
 let count = "   \t\n\n   \t    \t\t\n \n \t\n \t   \t \t \n\t\n     \t\n\t    \n    \t \t\t\n\t  \t\n\t  \t   \t \t\n\n \n \t    \t\t\n\n   \t   \t \t\n \n\n\n\n\n"
+
+let read_file file =
+  let inc = open_in file in
+  let rec read_lines s =
+    try
+      let line = input_line inc in
+      read_lines (s ^line ^ "\n")
+    with _ -> close_in inc ; s
+  in
+  read_lines ""
 
 let ws prg = prg
   |> Lexer.tokenize
@@ -339,3 +347,5 @@ let ws prg = prg
 
 let () = ws hello_world
 let () = ws count
+let () = ws (read_file "fact.ws")
+let () = ws (read_file "fibonacci.ws")
