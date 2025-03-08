@@ -23,14 +23,14 @@ module Whitespace = struct
   | Jneg of label
   | EndProg
 
-  type head_access = Store | Retrive
+  type heap_access = Store | Retrive
 
   type instruction = 
     IO of io 
   | StackManipulaton of stack_manipulation
   | Arithmetic of arithmetic
   | FlowControl of flow_control
-  | HeapAccess of head_access
+  | HeapAccess of heap_access
 
   type t = instruction list
 
@@ -176,7 +176,7 @@ module Parser = struct
         | _ -> failwith "ParseError: [parse_flow_control] Invalid case"
 
   and parse_heap_access
-    : Lexer.tokens -> Whitespace.head_access * Lexer.tokens
+    : Lexer.tokens -> Whitespace.heap_access * Lexer.tokens
     = fun tokens ->
         let open Lexer in
         match tokens with
@@ -215,26 +215,127 @@ module Interpreter = struct
 
   let heap = Hashtbl.create 512
 
+  let jmp_tbl = Hashtbl.create 512
+
+  let call_stack = Stack.create ()
+
+  let eval_arith op l r =
+    let open Whitespace in
+    match op with
+    | Add -> l + r
+    | Sub -> l - r
+    | Mul -> l * r
+    | Div -> l / r
+    | Mod -> l mod r
+
+  let rec record_jmps : Whitespace.t -> unit =
+    fun instructions ->
+    let open Whitespace in
+    match instructions with
+    | [] -> ()
+    | FlowControl Mark label :: instructions ->
+      let () = Hashtbl.add jmp_tbl label instructions in
+      record_jmps instructions
+    | _::instructions -> record_jmps instructions
+
   let rec eval : Whitespace.t -> unit =
     fun instructions ->
       let open Whitespace in
       match instructions with
-      | FlowControl EndProg :: _ -> ()
+      (* Flow Control *)
+      | FlowControl EndProg :: _ | [] -> ()
+      | FlowControl Mark label :: instructions ->
+        (* let () = Hashtbl.add jmp_tbl label instructions in *)
+        eval instructions
+      | FlowControl Call label :: instructions ->
+        let () = Stack.push instructions call_stack in
+        let instructions = Hashtbl.find jmp_tbl label in
+        eval instructions
+      | FlowControl Jmp label :: instructions ->
+        let instructions = Hashtbl.find jmp_tbl label in
+        eval instructions
+      | FlowControl Jz label :: instructions ->
+        if Stack.pop stack = 0
+          then let instructions = Hashtbl.find jmp_tbl label in
+               eval instructions
+        else eval instructions
+      | FlowControl Jneg label :: instructions ->
+        if Stack.pop stack < 0
+          then let instructions = Hashtbl.find jmp_tbl label in
+                eval instructions
+        else eval instructions
+      | FlowControl End :: instructions ->
+        let instructions = Stack.pop call_stack in
+        eval instructions
+      (* IO *)
       | IO OutputChar :: instructions ->
         let top = Stack.pop stack in
         let ch = Char.unsafe_chr top in
         let () = Printf.printf "%c" ch in
         eval instructions
+      | IO OutputNumber :: instructions ->
+        let top = Stack.pop stack in
+        let () = Printf.printf "%d" top in
+        eval instructions
+      | IO ReadChar :: instructions ->
+        let addr = Stack.pop stack in
+        let char = input_char stdin in
+        let () = Hashtbl.replace heap addr (Char.code char) in
+        eval instructions
+      | IO ReadNumber :: instructions ->
+        let addr = Stack.pop stack in
+        let int = int_of_string (input_line stdin) in
+        let () = Hashtbl.replace heap addr int in
+        eval instructions
+      (* Stack Manipulation *)
       | StackManipulaton Push n :: instructions ->
         let () = Stack.push n stack in
+        eval instructions
+      | StackManipulaton Dup :: instructions ->
+        let top = Stack.top stack in
+        let () = Stack.push top stack in
+        eval instructions
+      | StackManipulaton Swap :: instructions ->
+        let fst = Stack.pop stack in
+        let snd = Stack.pop stack in
+        let () = Stack.push fst stack in
+        let () = Stack.push snd stack in
+        eval instructions
+      | StackManipulaton Drop :: instructions ->
+        let _ = Stack.pop stack in
+        eval instructions
+      (* | StackManipulaton Copy n :: instructions -> *)
+      (* | StackManipulaton Slide n :: instructions -> *)
+      (* Arithmetic *)
+      | Arithmetic op :: instructions ->
+        let r = Stack.pop stack in
+        let l = Stack.pop stack in
+        let () = Stack.push (eval_arith op l r) stack in
+        eval instructions
+      (* Heap Access *)
+      | HeapAccess Store :: instructions ->
+        let value = Stack.pop stack in
+        let addr = Stack.pop stack in
+        let () = Hashtbl.replace heap addr value in
+        eval instructions
+      | HeapAccess Retrive :: instructions ->
+        let addr = Stack.pop stack in
+        let value = Hashtbl.find heap addr in
+        let () = Stack.push value stack in
         eval instructions
       | _ -> failwith "EvalError: [eval] Not implemented"
 
 end
 
-let hello_world = "   \t  \t   \n\t\n     \t\t  \t \t\n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t\t\t\n\t\n     \t \t\t  \n\t\n     \t     \n\t\n     \t\t\t \t\t\t\n\t\n     \t\t \t\t\t\t\n\t\n     \t\t\t  \t \n\t\n     \t\t \t\t  \n\t\n     \t\t  \t  \n\t\n     \t    \t\n\t\n     \t    \t\n\t\n  \n\n\n"
+let hello_world = "   \t  \t   \n\t\n     \t\t  \t \t\n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t  \n\t\n     \t\t \t\t\t\t\n\t\n     \t \t\t  \n\t\n     \t     \n\t\n     \t\t\t \t\t\t\n\t\n     \t\t \t\t\t\t\n\t\n     \t\t\t  \t \n\t\n     \t\t \t\t  \n\t\n     \t\t  \t  \n\t\n     \t    \t\n\t\n     \t    \t\n\t\n     \t \t \n\t\n  \n\n\n"
 
-let ws = hello_world
+let count = "   \t\n\n   \t    \t\t\n \n \t\n \t   \t \t \n\t\n     \t\n\t    \n    \t \t\t\n\t  \t\n\t  \t   \t \t\n\n \n \t    \t\t\n\n   \t   \t \t\n \n\n\n\n\n"
+
+let ws prg = prg
   |> Lexer.tokenize
   |> Parser.parse
+  |> fun ws -> Interpreter.record_jmps ws ; ws
   |> Interpreter.eval
+
+let () = ws hello_world
+let () = ws count
